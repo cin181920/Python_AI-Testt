@@ -32,3 +32,17 @@ Evaluasi arsitektur sistem Task Scheduler asinkron:
 - **Solusi Masalah Nyata:**
   1. Mengatasi *Noisy Neighbor* (mencegah satu user memonopoli resource server).
   2. Mengatasi *Blocking I/O* (memungkinkan eksekusi banyak *network/disk process* secara paralel).
+
+## 7. Analisis Optimalitas Arsitektur
+Arsitektur ini **sangat optimal untuk skala aplikasi tunggal (purwarupa)**, namun memiliki beberapa hambatan untuk skala sistem terdistribusi.
+
+### ✅ Kelebihan (Optimalitas Saat Ini):
+- **Efisiensi I/O:** Memakai `asyncio.gather` sehingga ratusan tugas berjalan paralel tanpa memboroskan memori *Thread*.
+- **Pencarian O(1):** Penggunaan struktur data *Dictionary* membuat pencarian data User dan strategi aksi menjadi instan.
+- **Validasi Fail-Fast:** Kuota dicek di paling awal, menghemat *resource* sistem dari memproses tugas yang ujungnya ditolak.
+
+### ❌ Kekurangan (Bottleneck Skala Besar) & Solusinya:
+- **Pencarian Jadwal Linear (O(N)):** Memfilter list jadwal satu per satu akan sangat lambat jika ada jutaan tugas. **Solusi:** Gunakan *Priority Queue (Min-Heap)*.
+- **Data Volatile:** Antrean dan kuota hilang total jika server mati (hanya tersimpan di RAM). **Solusi:** Migrasi penyimpanan ke *Message Broker* (RabbitMQ) dan Database.
+- **Tanpa Mekanisme Retry:** Tugas yang gagal dibiarkan begitu saja. **Solusi:** Tambahkan antrean khusus *Dead Letter Queue (DLQ)* dan *Exponential Backoff Retry*.
+- **Rawan Event Loop Blocking:** Satu tugas komputasi berat (CPU-bound) akan membekukan seluruh antrean *asyncio*. **Solusi:** Lempar komputasi berat ke *worker* atau proses terpisah.
